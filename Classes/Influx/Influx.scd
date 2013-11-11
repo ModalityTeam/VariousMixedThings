@@ -32,7 +32,13 @@ a.inNames
 a.outNames
 a.inValDict
 a.weights   // randomly initialized
+a.dump
+a.presets
+a.weights
 a.specs;    // specs will be done fully later
+
+a.blend([1,0.1, 0.1]).weights.round(0.01);
+a.rand.weights.round(0.01);
 */
 
 a.rand(0.5);// randomize by an amount between 0 and 1
@@ -42,7 +48,10 @@ a.outValDict;          // still empty
 a.set(\x, 1.0.rand2, \y, 1.0.rand2); // set to something
 a.outValDict;       // outvalues created automatically
 
-
+a.entangle(0.1).weights.round(0.01);
+a.blend(a.presets.diagL, 0.5).weights.round(0.01);
+a.entangle(0.1).weights.round(0.01);
+a.disentangle(0.5, \diagR).weights.round(0.01);
 
 ///// guis for understanding and testing
 (
@@ -53,12 +62,12 @@ w.layout = VLayout(
 	HLayout(
 		VLayout(
 			StaticText(w, 190@20).string_("Change Influx weights:"),
-			Button(w, 190@20).states_([["drift"]])
-			   .action_({ a.rand(0.23); p.value_(a.weights.flop); }),
-			Button(w, 190@20).states_([["surprise"]])
-			   .action_({ a.rand(0.38); p.value_(a.weights.flop); }),
+			Button(w, 190@20).states_([["disentangle"]])
+			.action_({ a.disentangle(0.38); p.value_(a.weights.flop); }),
+			Button(w, 190@20).states_([["entangle"]])
+			   .action_({ a.entangle(0.24); p.value_(a.weights.flop); }),
 			Button(w, 190@20).states_([["mystery"]])
-			   .action_({  a.rand(062); p.value_(a.weights.flop); }),
+			   .action_({  a.entangle(0.62); p.value_(a.weights.flop); }),
 			Button(w, 190@20).states_([["RANDOM"]])
 			   .action_({  a.rand(1.0); p.value_(a.weights.flop); })
 		),
