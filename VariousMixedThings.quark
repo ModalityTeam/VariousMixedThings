@@ -1,0 +1,12 @@
+(
+	\name: "VariousMixedThings",
+	\path: "VariousMixedThings",
+	\summary: "Various classes loosely related to Modality.",
+	\helpdoc: "Help/VariousMixedThings.scd",
+	\author: "Alberto de Campo, Marije Baalman, Modality Team",
+	\version: 0.1,
+	\organization: "UdK Berlin, STEIM, sensestage",
+	\country: "Germany, Netherlands",
+	\since: "2013"
+)
+
