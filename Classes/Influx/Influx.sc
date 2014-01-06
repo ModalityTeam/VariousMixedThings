@@ -8,6 +8,8 @@ Influx {
 	var <weights, <outValDict, <action;
 	var <shape, <smallDim, <bigDim, <presets;
 
+	var <>outOffsets, <>inScaler = 1;
+
 	*new { |ins, outs, vals, weights|
 		^super.newCopyArgs(ins, outs, vals, weights).init;
 	}
@@ -19,7 +21,6 @@ Influx {
 	}
 
 	init {
-
 		if (inValDict.isNil) {
 			inValDict = ();
 			inNames.do (inValDict.put(_, 0));
@@ -31,6 +32,8 @@ Influx {
 		shape = weights.shape;
 		smallDim = shape.minItem;
 		bigDim = shape.maxItem;
+
+		outOffsets = 0 ! outNames.size;
 
 		this.makePresets;
 		this.rand;
@@ -154,8 +157,8 @@ Influx {
 	calcOutVals {
 		weights.do { |line, i|
 			var outVal = line.sum({ |weight, j|
-				weight * inValDict[inNames[j]]
-			});
+				weight * inValDict[inNames[j]] * inScaler;
+			}) + outOffsets[i];
 			outValDict.put(outNames[i], outVal);
 		};
 	}
@@ -174,10 +177,41 @@ Influx {
 		if (pre.notNil) { this.setw(pre) };
 	}
 
-	attach { |object, funcName, paramNames, specs, method = \set|
-		var paramDict = ();
+	attachDirect { |object, funcName|
 		action.addLast(funcName, {
-			object.perform(method, *this.outValDict.asKeyValuePairs)
+			object.set(*this.outValDict.asKeyValuePairs)
+		});
+	}
+
+	offsetsFromProxy { |proxy|
+		var setting = proxy.getKeysValues;
+		var normVals = setting.collect { |pair|
+			proxy.getSpec(pair[0]).unmap(pair[1]);
+		};
+		^outOffsets = normVals * 2 - 1;
+	}
+
+	offsetsFromPreset { |preset, setName|
+		var setting = preset.getSet(setName);
+		var normVals = setting.value.collect { |pair|
+			preset.proxy.getSpec(pair[0]).unmap(pair[1]);
+		};
+		^outOffsets = normVals * 2 - 1;
+	}
+
+	attachMapped { |object, funcName, paramNames, specs|
+		var mappedKeyValList;
+		// paramNames = paramNames ?? { object.getHalo(\orderedNames); };
+		specs = specs ?? { object.getSpec; };
+
+		action.addLast(funcName, {
+			mappedKeyValList = paramNames.collect { |extParName, i|
+				var inflOutName = outNames[i];
+				var inflVal = outValDict[inflOutName];
+				var mappedVal = specs[extParName].map(inflVal + 1 * 0.5);
+				[extParName, mappedVal];
+			};
+			object.set(*mappedKeyValList.flat);
 		});
 	}
 }
