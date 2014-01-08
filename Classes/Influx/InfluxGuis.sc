@@ -1,3 +1,4 @@
+
 InfluxPlot : JITGui {
 	var <inNameView, <outNameView, <plotter;
 	var <inNames, <outNames;
@@ -14,18 +15,37 @@ InfluxPlot : JITGui {
 	makeViews {
 		var font = Font("Monaco", 10);
 		// Pen.font_(Font("", 12));
+
+		zone.resize_(5); // elastic h + v
+
 		nameView = StaticText(zone, Rect(0,0,50, 20))
 		.font_(font).string_("weights");
-		outNameView = StaticText(zone, Rect(0,0, 200, 20))
-		.font_(font).string_("<outNames>")
-		.align_(\center).resize_(2); // horz el
-		inNameView = StaticText(zone, Rect(0,0, 50, 150))
-		.font_(font).string_("<in\nNames>").align_(\center).resize_(4); // vert el
+
+		inNameView = UserView(zone, Rect(0,0, 200, 20))
+		.font_(font).resize_(2); // elastic horiz
+		inNameView.drawFunc = { |u|
+			inNames.do { |name, i|
+				var wid = u.bounds.width / inNames.size;
+				Pen.stringCenteredIn(name.asString,
+					Rect(wid*i, 0, wid, 20), font);
+			};
+		};
+
+		outNameView = UserView(zone, Rect(0,0, 46, 200))
+		.font_(font).resize_(4); // elastic vert;
+		outNameView.drawFunc = { |u|
+			var hi = u.bounds.height / outNames.size;
+			outNames.do { |name, i|
+				Pen.stringCenteredIn(name.asString,
+					Rect(0, hi * i, 50, hi), font);
+			};
+		};
+
 		plotter = Plotter(\weights,  Rect(0,0, 200, 180), zone);
 		plotter
 		//    .specs_(\pan)
 		    // .findSpecs_(false)
-		    .plotMode_(\plines)
+		    .plotMode_(\points) // \plines
 		    .editMode_(true)
 		    .editFunc_({ |plotter, xi, yi, value|
 		    	object.weights[yi].put(xi, value);
@@ -46,31 +66,14 @@ InfluxPlot : JITGui {
 		^newState
 	}
 
-	// name display is just a hack for now, FIXME later
-	// p.inNames = a.inNames; p.outNames = a.outNames;
 	inNames_ { |newNames|
-		var inNameStr = "";
-		if (newNames != inNames) {
-			newNames.do { |name, i|
-				inNameStr = inNameStr
-				++ if (i == 0) { "\n\n" } { "\n\n\n\n\n" }
-				++ name;
-			};
-			inNameView.string_(inNameStr);
-			inNames = newNames;
-		};
+		inNames = newNames;
+		inNameView.refresh;
 	}
 
 	outNames_ { |newNames|
-		var outNameStr = "  ";
-		if (newNames != outNames) {
-
-			newNames.do { |name, i|
-				outNameStr = outNameStr ++ (name.asString.keep(3) ++ " ").clipExtend(4);
-			};
-			outNameView.string_(outNameStr);
-			outNames = newNames;
-		};
+		outNames = newNames;
+		outNameView.refresh;
 	}
 
 	checkUpdate {
