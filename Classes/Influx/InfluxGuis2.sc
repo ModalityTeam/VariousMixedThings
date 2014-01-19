@@ -7,17 +7,17 @@ y = InfluxWGui.new;
 z.object = a;
 z.object = b;
 
-y = InfluxIOWGui.new;
+z.multiSliders.do(_.isFilled_(false));
+z.multiSliders.do(_.valueThumbSize_(1));
+
+y = InfluxIOWGui(a);
 y.object = a;
 y.object = b;
 
+
 To DO:
 
-* should multisliders write back into weights
-* if so, toggle edit mode on/off?
-* invals gui is active,
-* disable outvals gui?
-* off by one size error in paramgui2
+* how to toggle edit mode for multisliders on/off?
 
 */
 
@@ -48,7 +48,7 @@ InfluxWGui : JITGui {
 		.font_(font).string_("weights");
 
 		inNameView = UserView(zone, Rect(0,0, 200, 20))
-		.font_(font).resize_(2); // elastic horiz
+		.resize_(2); // elastic horiz
 		inNameView.drawFunc = { |u|
 			inNames.do { |name, i|
 				var wid = u.bounds.width / inNames.size;
@@ -58,7 +58,7 @@ InfluxWGui : JITGui {
 		};
 
 		outNameView = UserView(zone, Rect(0,0, 46, 200))
-		.font_(font).resize_(4); // elastic vert;
+		.resize_(4); // elastic vert;
 		outNameView.drawFunc = { |u|
 			var hi = u.bounds.height / outNames.size;
 			outNames.do { |name, i|
@@ -77,16 +77,19 @@ InfluxWGui : JITGui {
 		multiZone.addFlowLayout(0@0, 0@0);
 		multiZone.resize_(5);
 
-		multiZone.onResize_{ |zn|
-			var numSl = multiSliders.size;
-			var wid = zn.bounds.width;
-			var hi = zn.bounds.height;
-			var mswid = wid / numSl;
+		// pre-Qt compat
+		if (multiZone.respondsTo(\onResize_)) {
+			multiZone.onResize_{ |zn|
+				var numSl = multiSliders.size;
+				var wid = zn.bounds.width;
+				var hi = zn.bounds.height;
+				var mswid = wid / numSl;
 
-			multiSliders.do { |ms, i|
-				ms.bounds_(Rect( mswid * i, 0, mswid, hi));
-				ms.indexThumbSize = (hi / ms.value.size).trunc - 1;
-			}
+				multiSliders.do { |ms, i|
+					ms.bounds_(Rect( mswid * i, 0, mswid, hi));
+					ms.indexThumbSize = (hi / ms.value.size).trunc - 1;
+				}
+			};
 		};
 
 		this.makeMultis(numIns, numOuts);
@@ -110,6 +113,14 @@ InfluxWGui : JITGui {
 			m.isFilled = true;
 			m.reference = 0.5 ! numOuts;
 			m.resize_(4);
+		};
+
+		if (GUI.current != QtGUI) {
+			// SC multisliders look different: they
+			// don't show filled relative to reference
+			multiSliders.do(_.isFilled_(false));
+			multiSliders.do(_.valueThumbSize_(8));
+			multiSliders.do(_.drawRects_(true));
 		};
 	}
 
@@ -148,6 +159,10 @@ InfluxWGui : JITGui {
 
 	checkUpdate {
 		var newState = this.getState;
+		if (newState[\object] != prevState[\object]) {
+			zone.enabled_(object.notNil);
+		};
+
 		if (object.notNil) {
 			if (newState[\inNames] != prevState[\inNames]) {
 				this.inNames_(newState[\inNames]); };
@@ -180,6 +195,8 @@ InfluxIOWGui : JITGui {
 
 				object.outNames.do(outValsGui.specs.put(_, \pan));
 				outValsGui.object_(object.outValDict);
+				// display only!
+				outValsGui.zone.enabled_(false);
 			};
 		};
 	}

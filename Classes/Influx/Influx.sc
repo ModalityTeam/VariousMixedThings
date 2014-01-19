@@ -201,8 +201,11 @@ Influx {
 
 	attachMapped { |object, funcName, paramNames, specs|
 		var mappedKeyValList;
-		// paramNames = paramNames ?? { object.getHalo(\orderedNames); };
 		specs = specs ?? { object.getSpec; };
+		funcName = funcName ? object.key;
+		paramNames = paramNames ?? { object.controlKeys; };
+		// hm, or better:
+		// paramNames = paramNames ?? { object.getHalo(\orderedNames); };
 
 		action.addLast(funcName, {
 			mappedKeyValList = paramNames.collect { |extParName, i|
@@ -214,4 +217,6 @@ Influx {
 			object.set(*mappedKeyValList.flat);
 		});
 	}
+
+	removeMapped { |name| action.removeAt(name); }
 }

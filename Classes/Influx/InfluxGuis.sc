@@ -1,3 +1,5 @@
+// Plot looks good, but is somehow misleading.
+// ATM, multislider-based InfluxWGui seems better.
 
 InfluxPlot : JITGui {
 	var <inNameView, <outNameView, <plotter;
@@ -19,10 +21,10 @@ InfluxPlot : JITGui {
 		zone.resize_(5); // elastic h + v
 
 		nameView = StaticText(zone, Rect(0,0,50, 20))
-		.font_(font).string_("weights");
+			.font_(font).string_("weights");
 
 		inNameView = UserView(zone, Rect(0,0, 200, 20))
-		.font_(font).resize_(2); // elastic horiz
+			.resize_(2); // elastic horiz
 		inNameView.drawFunc = { |u|
 			inNames.do { |name, i|
 				var wid = u.bounds.width / inNames.size;
