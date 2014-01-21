@@ -105,11 +105,11 @@ InfluxWGui : JITGui {
 		multiSliders.do(_.remove);
 		multiZone.decorator.reset;
 
-		multiSliders = numIns.collect {
+		multiSliders = numIns.collect { |i|
 			var m = MultiSliderView(multiZone, Rect(0,0, multiW, multiH));
 			m.indexThumbSize_(indexSize);
 			m.indexIsHorizontal_(false);
-			m.action = { arg q; q.value.round(0.001).postln; };
+			m.action = { arg q; this.setWeightsFor(i, q.value * 2 - 1) };
 			m.isFilled = true;
 			m.reference = 0.5 ! numOuts;
 			m.resize_(4);
@@ -119,8 +119,14 @@ InfluxWGui : JITGui {
 			// SC multisliders look different: they
 			// don't show filled relative to reference
 			multiSliders.do(_.isFilled_(false));
-			multiSliders.do(_.valueThumbSize_(8));
+			multiSliders.do(_.valueThumbSize_(4));
 			multiSliders.do(_.drawRects_(true));
+		};
+	}
+	
+	setWeightsFor { |inIndex, inweights| 
+		inweights.do { |val, j| 
+			object.weights[j].put(inIndex, val);
 		};
 	}
 
@@ -153,7 +159,10 @@ InfluxWGui : JITGui {
 			this.makeMultis(*weights.shape);
 		};
 		multiSliders.do { |ms, i|
+			var wsize = weights[i].size;
 			ms.value = weights[i] + 1 * 0.5;
+			ms.indexThumbSize = (ms.bounds.height / wsize).floor - 1;
+			ms.reference_(0.5 ! wsize);
 		};
 	}
 
@@ -185,20 +194,26 @@ InfluxIOWGui : JITGui {
 	}
 
 	checkUpdate {
-		if (object != prevState[\object]) {
+		var newState = this.getState;
+		if (newState[\object] != prevState[\object]) {
 			if (object.notNil) {
-				object.inNames.do(inValsGui.specs.put(_, \pan));
 				inValsGui.object_(object.inValDict);
+				object.inNames.do(inValsGui.specs.put(_, \pan.asSpec));
 				this.addInvalActions;
 
 				wGui.object_(object);
 
-				object.outNames.do(outValsGui.specs.put(_, \pan));
 				outValsGui.object_(object.outValDict);
+				object.outNames.do(outValsGui.specs.put(_, \pan.asSpec));
 				// display only!
 				outValsGui.zone.enabled_(false);
 			};
-		};
+		}; 
+		inValsGui.checkUpdate;
+		wGui.checkUpdate;
+		outValsGui.checkUpdate;
+
+		prevState = newState.put(\object, newState[\object].copy);
 	}
 
 	addInvalActions {
@@ -217,20 +232,23 @@ InfluxIOWGui : JITGui {
 		} {
 			defPos = skin.margin;
 		};
-		minSize = 270 @ (numItems.sum + 2 * skin.buttonHeight
-		+ skin.headHeight + 224);
+		minSize = 270 @ (numItems.sum + 1 * skin.buttonHeight
+		+ (skin.headHeight * 2) + 224);
 		//	"minSize: %\n".postf(minSize);
 	}
 
 
 	makeViews { |options|
 		inValsGui = ParamGui(nil, numItems[0], zone,
-			bounds: 260@100,
+			bounds: 260 @ (numItems[0] + 1 * 20),
+			makeSkip: false,
 			options: [\name]).name_(\inVals);
 
-		wGui = InfluxWGui(nil, numItems, zone, 260 @ 200);
-		outValsGui = ParamGui(nil, numItems[1] + 1, zone,
-			bounds: 260@100,
-			options: [\name]).name_(\outVals);
+		wGui = InfluxWGui(nil, numItems, zone, 260 @ 200, makeSkip: false);
+		outValsGui = ParamGui(nil, numItems[1], zone,
+			bounds: 260 @ (numItems[1] + 1 * 20), 
+			makeSkip: false,
+			options: [\name])
+			.name_(\outVals);
 	}
 }

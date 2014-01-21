@@ -1,7 +1,27 @@
-// todo:
-// * update plotter when weights change
-// * method for skewed diagonals
-//
+/* todo:
+
+* method for making skewed diagonals
+* crossfade background task:
+*  xfade to new set of weights,
+*  xfade to new offsets
+*  xfade to multi-offsets,
+*   e.g. locate them at (0.5@0.5), (-0.5 @ -0.5)
+* same for 3dim controls
+
+* make an official Influx interface?
+*
+
+* Examples with Tdef, Pdef
+
+* Example with multitouchpad:
+*  new finger gets next ndef/tdef, 3 params (vol, x, y)
+
+* a dense field of lots of presets, morph by distance
+
+InfluxIOWGui
+
+*/
+
 
 Influx {
 	var <inNames, <outNames, <inValDict;
