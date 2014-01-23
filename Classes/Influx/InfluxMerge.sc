@@ -41,4 +41,9 @@ InfluxMerge {
 	checkWeights { |who|
 		if (srcWeights[who].isNil) { srcWeights[who] = 1 };
 	}
+
+	putSrcWeight { |srcName, val|
+		srcWeights.put(srcName, val);
+		mergeFunc.value(inValDict, outValDict, srcWeights);
+	}
 }
