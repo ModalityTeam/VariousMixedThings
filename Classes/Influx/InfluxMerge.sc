@@ -1,5 +1,6 @@
 InfluxMerge {
 	var <inValDict, <outValDict, <>mergeFunc;
+	var <srcWeights;
 
 	*new {
 		^super.new.init;
@@ -7,10 +8,22 @@ InfluxMerge {
 	init {
 		inValDict = ();
 		outValDict = ();
-		mergeFunc = { |in, out|
+		srcWeights = ();
+
+		// // default: sort of equal power pan
+		// var outval = values.mean * weight / values.size.sqrt;
+		// var outval = values.sum * weight; // alt - linear sum
+		// var outval = values.mean * weight; // alt - mean value
+
+		mergeFunc = { |in, out, srcWeights|
 			in.keysValuesDo { |key, values|
-				///// sort of reverse equal power pan
-				var outval = values.sum / values.size.sqrt;
+				var outval = 0;
+				values.keysValuesDo { |srcName, val|
+					var contrib = val * (srcWeights[srcName]);
+					outval = outval + contrib;
+					// [srcName, srcWeights[srcName], contrib].postln;
+				};
+				outval = outval / values.size.sqrt;
 				out.put(key, outval);
 			}
 		}
@@ -21,6 +34,11 @@ InfluxMerge {
 			if (inValDict[param].isNil) { inValDict[param] = () };
 			inValDict[param].put(who, val);
 		};
-		mergeFunc.value(inValDict, outValDict);
+		this.checkWeights(who);
+		mergeFunc.value(inValDict, outValDict, srcWeights);
+	}
+
+	checkWeights { |who|
+		if (srcWeights[who].isNil) { srcWeights[who] = 1 };
 	}
 }
