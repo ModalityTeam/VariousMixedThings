@@ -81,15 +81,9 @@ INSTANCEMETHODS::
 
 private:: init, checkWeights
 
-METHOD:: influence
-exert an influence on a named param of the InfluMerge.
-ARGUMENT:: who
-name of the source exerting the influence
-ARGUMENT::  ... keyValPairs
-pairs of key, val, key, val
 
-METHOD:: putSrcWeight
-set the weight for a named source.
+METHOD:: mergeFunc
+get and set the function by which values are merged. By default, a kind of equal power panning is used.
 
 METHOD:: inValDict
 the dictionary of incoming influence values
@@ -97,12 +91,21 @@ the dictionary of incoming influence values
 METHOD:: outValDict
 the dictionary of output influence values
 
-METHOD:: mergeFunc
-get and set the function by which values are merged. By default, a kind of equal power panning is used.
-
 METHOD:: srcWeights
 the dictionary of weights for each named source.
 
+METHOD:: putSrcWeight
+add or set a weight for a named source.
+
 METHOD:: checkWeights
 check whether a named source already has a weight.
+
+METHOD:: influence
+exert an influence on a named param of the InfluMerge.
+
+ARGUMENT:: who
+name of the source exerting the influence
+
+ARGUMENT::  ... keyValPairs
+pairs of key, val, key, val
 

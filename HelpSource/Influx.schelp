@@ -25,10 +25,7 @@ First example:
 code::
 // make an influx - fan-in, fan-out
 a = Influx([\x, \y], [\a, \b, \c,\d, \e, \f, \g, \h], (x: 0.5, y: 0.1));
-
-// make a plot/edit window for weights:
-// InfluxPlot writes back into weights!
-p = InfluxPlot(a); 
+b = InfluxWGui(a); 
 
 // randomize to  maximum bipolar value
 a.rand(0.5).postw;
@@ -36,30 +33,9 @@ a.rand(0.5).postw;
 a.blend([1,0.1, 0.1, 0.5]).postw;
 a.blend([1,0.1, 0.1], 0.9).postw;
 
-(
-w = Window("Influx - set x, y", Rect(0, 200, 200, 200)).front;
-w.layout = VLayout(
-	Slider2D(w, 190@190)
-		.action_({|sl| a.set(\x, sl.x * 2 - 1, \y, sl.y * 2 - 1); })
-
-);
-
-// show in/out values 
-w = Window("Influx in/out values", Rect(0, 300, 400, 300)).front;
-w.addFlowLayout;
-
-
-StaticText(w, 390@20).string_("Influx values:");
-
-[a.inValDict, a.outValDict].collect { |dict, i|
-	var eg = ParamGui(nil, [4, 8][i], w, 380@100, options: [\name]);
-	eg.name_(["ins", "outs"][i]);
-	dict.keysDo { |key| eg.specs.put(key, \bipolar) };
-	eg.object_(dict);
-	eg.zone.enabled_(false);
-	eg.skipjack.dt = 0.1;
-}
-)
+// make a slider to control 
+c = InfluxKtlGui(a);
+d = InfluxIOWGui(a); 
 
 a.set(\x, 0.0, \y, 0.0).postw; // set to center
 a.set(\x, 0.0, \y, 0.2).postw; // set to specific place
@@ -184,11 +160,15 @@ code::
 // EXAMPLES
 // make an influx - fan-out 2 params to 8
 a = Influx([\x, \y], [\a, \b, \c,\d, \e, \f, \g, \h], (x: 0.5, y: 0.1));
-// make a plot/edit window for weights:
-p = InfluxPlot(a).moveTo(300, 630);
+// make plot/edit views for weights:
+// plot style
+b = InfluxPlot(a).moveTo(300, 630);
+// or multislider style, which I find clearer:
+c = InfluxWGui(a); 
 
 ///// interactive gui example
-// try DIS/ENTANGLE
+// make a control window by hand
+// or use: InfluxKtlGui(a);
 (
 w = Window("Influx control", Rect(0, 630, 300, 200)).front;
 w.layout = VLayout(
@@ -277,7 +257,7 @@ Ndef(\a).play;
 a.attachMapped(Ndef(\a), \setNdef, Ndef(\a).controlKeys);
 
 // to remove again: 
-// a.action.removeAt(\setNdef);
+// a.action.detach(\setNdef);
 
 
 // strange whistler setting

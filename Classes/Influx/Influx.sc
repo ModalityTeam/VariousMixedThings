@@ -9,7 +9,7 @@
 * same for 3dim controls
 
 * make an official Influx interface?
-*
+* InfluxKtlGui... add KtlLoop there already?
 
 * Examples with Tdef, Pdef
 
@@ -197,18 +197,12 @@ Influx {
 		if (pre.notNil) { this.setw(pre) };
 	}
 
-	attachDirect { |object, funcName|
-		action.addLast(funcName, {
-			object.set(*this.outValDict.asKeyValuePairs)
-		});
-	}
-
 	offsetsFromProxy { |proxy|
 		var setting = proxy.getKeysValues;
 		var normVals = setting.collect { |pair|
 			proxy.getSpec(pair[0]).unmap(pair[1]);
 		};
-		^outOffsets = normVals * 2 - 1;
+		^outOffsets = normVals.unibi;
 	}
 
 	offsetsFromPreset { |preset, setName|
@@ -216,16 +210,23 @@ Influx {
 		var normVals = setting.value.collect { |pair|
 			preset.proxy.getSpec(pair[0]).unmap(pair[1]);
 		};
-		^outOffsets = normVals * 2 - 1;
+		^outOffsets = normVals.unibi;
+	}
+
+	attachDirect { |object, funcName|
+		funcName = funcName ?? { object.key };
+		action.addLast(funcName,
+			{ object.set(*this.outValDict.asKeyValuePairs) }
+		);
 	}
 
 	attachMapped { |object, funcName, paramNames, specs|
 		var mappedKeyValList;
 		specs = specs ?? { object.getSpec; };
 		funcName = funcName ? object.key;
-		paramNames = paramNames ?? { object.controlKeys; };
-		// hm, or better:
-		// paramNames = paramNames ?? { object.getHalo(\orderedNames); };
+		paramNames = paramNames
+		?? { object.getHalo(\orderedNames); }
+		?? { object.controlKeys; };
 
 		action.addLast(funcName, {
 			mappedKeyValList = paramNames.collect { |extParName, i|
@@ -238,5 +239,5 @@ Influx {
 		});
 	}
 
-	removeMapped { |name| action.removeAt(name); }
+	detach { |name| action.removeAt(name); }
 }

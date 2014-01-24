@@ -1,20 +1,26 @@
 InfluxKtlGui : JITGui {
-	var <leftTopV, <leftBotV, <leftButtonV, <rightButtonV, <xpop, <ypop, <xySlider, <loopGui;
+
+	var <leftTopV, <leftBotV, <leftButtonV, <rightButtonV;
+	var <attachButtons, <xpop, <ypop, <xySlider, <loopGui;
+	var <xyMapDict;
+
+	*new { |object, numItems = 5, parent, bounds, makeSkip = true, options = #[]|
+		^super.new(nil, numItems, parent, bounds, makeSkip, options);
+	}
 
 	accepts { |obj| ^obj.isNil or: obj.isKindOf(Influx) }
 
-	setDefaults {
+	setDefaults { |options|
+		var minHeight = (numItems + 6 * (skin.buttonHeight + 2) + (skin.margin.y * 4));
 		defPos = 530@660;
-		minSize = 330 @ (numItems + 6 * (skin.buttonHeight + 2) + (skin.margin.y * 4) + 200);
+		if (options.includes(\loop)) { minHeight = minHeight + 200 };
+		minSize = 330 @ minHeight;
 	}
 
-	makeViews {
-		numItems = 5;
+	makeViews { |options|
 
-		if (hasWindow.not) {
-			this.makeNameView;
-		};
-		this.name_("TEST");
+		if (hasWindow.not) { this.makeNameView; };
+		this.name_("Influx ...");
 
 		leftTopV = HLayoutView(zone, Rect(0, 0, zone.bounds.width, 240))
 		.background_(Color.green.alpha_(0.2));
@@ -25,8 +31,10 @@ InfluxKtlGui : JITGui {
 		this.makeButtons;
 		this.makeSlider;
 
-		loopGui = KtlLoopGui(KtlLoop(\test), 0, parent: zone, bounds: 310 @ 180);
-		loopGui.taskGui.name_("KtlLoop for Influx");
+		if (options.includes(\loop)) {
+			loopGui = KtlLoopGui(KtlLoop(\testXYZ), 0, parent: zone, bounds: 310 @ 180);
+			loopGui.taskGui.name_("KtlLoop for Influx");
+		};
 	}
 
 	makeButtons { |options|
@@ -48,7 +56,7 @@ InfluxKtlGui : JITGui {
 		StaticText(leftButtonV, Rect(0, 0, butWid, butH))
 		.align_(\center).string_("Influence objects:");
 
-		numItems.collect { |i|
+		attachButtons = numItems.collect { |i|
 			var name =i.asString;
 			Button(leftButtonV, Rect(0, 0, butWid, butH))
 			.states_([[name], [name, Color.white, Color.green(0.62)]])
@@ -61,12 +69,21 @@ InfluxKtlGui : JITGui {
 		var rightWid = rightButtonV.bounds.width;
 		var topLine = HLayoutView(rightButtonV, Rect(0, 0, rightWid, butH));
 
+		xyMapDict = (x: \x, y: \y);
+
 		xpop = EZPopUpMenu(topLine, (rightWid * 0.37)@butH, "x:", labelWidth: 12)
-		.items_([\x, \y]).action_({ });
+		.items_([\x, \y])
+		.globalAction_({ |pop|
+			xyMapDict.put(\x, object.inNames[pop.value]).postln
+		});
+
 		StaticText(topLine, Rect(0, 0, rightWid * 0.26, butH)).align_(\center)
 		.string_("Inputs:");
+
 		ypop = EZPopUpMenu(topLine, (rightWid * 0.37)@butH, "y:", labelWidth: 12)
-		.items_([\x, \y]).value_(1).action_({ });
+		.items_([\x, \y]).value_(1).globalAction_({ |pop|
+			xyMapDict.put(\y, object.inNames[pop.value]).postln
+		});
 
 		xySlider = Slider2D(rightButtonV, Rect(0, 0, rightWid, rightWid))
 		.x_(0.5).y_(0.5)
@@ -74,20 +91,33 @@ InfluxKtlGui : JITGui {
 		.action_({|sl| this.slAction(sl); });
 
 		xySlider.keyDownAction_({ |sl, ch, mod| this.slKeydown(ch, mod); });
-
-		// SkipJack({  }, 0.05,
-		// { w.isClosed }, "slider2D display");
-		//
-		// //			"n : min, c : center, x : max\n"
-		// //			"r : jump to random\n"
-		// //			"arrows u,d,l,r: go by steps\n"
-		//
-		// StaticText(rightButtons, Rect(buttWidth+10, 0, buttWidth, 100)).align_(\center)
-		// .string_(
-		// 	"         Shortcuts:\n"
-		// 	"   o : rec/stoprec loop\n"
 	}
 
+	setButton { |index, name, func|
+		var but = attachButtons[index];
+		but.action_(func);
+		but.states_(but.states.collect { |state| state[0] = name });
+		but.refresh;
+	}
+
+	attachToButton { |index, proxy, mapped = true|
+		var name = proxy.key;
+		this.setButton(index, name, { |bt, modif|
+			if (bt.value > 0) {
+				if (mapped) {
+					object.attachMapped(proxy);
+				} {
+					object.attachDirect(proxy);
+				};
+				proxy.play;
+			} {
+				if (modif.isAlt) { proxy.stop; };
+				object.detach(name);
+			};
+		});
+	}
+
+	// could do func lookup here - maybe later
 	influxFunc { |index, butVal, modif|
 		thisMethod.postln;
 		[index, butVal, modif].postln;
@@ -106,7 +136,7 @@ InfluxKtlGui : JITGui {
 	}
 
 	slAction { |sl|
-		thisMethod.postln;
+
 		if (object.notNil) {
 			// how to attach KtlLoop to Influx? an instvar?
 			// // recording into KtlLoop here
@@ -114,74 +144,35 @@ InfluxKtlGui : JITGui {
 			// object.rec.recordEvent((type: \set, x: sl.x, y: sl.y)); };
 			// // // and this is the normal set function
 			// // // bipolar mapping here done by hand
-			object.set(\x, sl.x * 2 - 1, \y, sl.y * 2 - 1);
+
+			object.set(xyMapDict[\x], sl.x.unibi, xyMapDict[\y], sl.y.unibi);
 		}
 	}
+
 
 	checkUpdate {
 		var newState = this.getState;
 
-		if (object.notNil) {
-			var newX = object.inValDict[\x] + 1 / 2;
-			var newY = object.inValDict[\y] + 1 / 2;
-			xySlider.setXY(newX, newY);
+		if (newState[\object].notNil) {
+			if (newState[\object] != prevState[\object]) {
+
+				this.name_(this.getName);
+				xyMapDict.put(\x, object.inNames[0]);
+				xyMapDict.put(\y, object.inNames[1]);
+				[xpop, ypop].do { |pop, i|
+					pop.items_(object.inNames).valueAction_(i);
+				};
+			};
+
+			xpop.value_(object.inNames.indexOf(xyMapDict[\x]));
+			ypop.value_(object.inNames.indexOf(xyMapDict[\y]));
+
+			// xySlider.setXY(
+			// 	object.inValDict[xyMapDict[\x]].biuni,
+			// 	object.inValDict[xyMapDict[\y]].biuni
+			// );
 		};
 
 		prevState = newState;
 	}
-
-	// if (b.value > 0) {
-	// 	object.attachMapped( p[name]);
-	// 	npg.object_(NodeProxyPreset(p[name]));
-	// } {
-	// 	object.removeMapped(name);
-	// 	if (modif.isAlt) { p[name].stop };
-	// };
-	// });
-
-	// rightButtons = VLayoutView(leftTopV, Rect(0, 0, leftV.bounds.width/2, 250) );
-	//
-	// StaticText(rightButtons, Rect(buttWidth+10, 0, buttWidth, 20)).align_(\center)
-	// .string_("Change inputs:");
-	//
-	// slider2 = Slider2D(rightButtons,
-	// Rect(buttWidth+10, 30, buttWidth, buttWidth))
-	// .x_(0.5).y_(0.5)
-	// .background_( Color.new255(200, 100, 0) )
-	// .action_({|sl|
-	// 	// recording into KtlLoop here
-	// 	k.recordEvent((type: \set, x: sl.x, y: sl.y));
-	// 	// and this is the normal set function
-	// 	// bipolar mapping here done by hand
-	// 	object.set(\x, sl.x * 2 - 1, \y, sl.y * 2 - 1);
-	// });
-	// slider2.keyDownAction_({ |sl, char|
-	// 	char.switch(
-	// 		$o, { k.toggleRec },
-	// 		$p, { k.togglePlay },
-	// 		$ , { k.togglePlay },
-	// 		$l, { k.toggleLooped }
-	// 	);
-	// });
-	// SkipJack({ slider2.setXY(object.inValDict[\x] + 1 / 2, object.inValDict[\y] + 1 / 2) }, 0.05,
-	// { w.isClosed }, "slider2D display");
-	//
-	// //			"n : min, c : center, x : max\n"
-	// //			"r : jump to random\n"
-	// //			"arrows u,d,l,r: go by steps\n"
-	//
-	// StaticText(rightButtons, Rect(buttWidth+10, 0, buttWidth, 100)).align_(\center)
-	// .string_(
-	// 	"         Shortcuts:\n"
-	// 	"   o : rec/stoprec loop\n"
-	// 	"p / space : play/stop loop\n"
-	// 	"     l : looped on/off\n"
-	// );
-	//
-	// leftBotV = HLayoutView(leftV, Rect(0, 290, leftV.bounds.width, 180) );
-	// //	ktlg = KtlLoopGui(k, bounds: 310 @ 180, parent: leftBotV);
-	// ktlg = KtlLoopGui(k, bounds: 310 @ 180, parent: leftBotV);
-	// ktlg.taskGui.name_("KtlLoop for Influx");
-
-
 }
