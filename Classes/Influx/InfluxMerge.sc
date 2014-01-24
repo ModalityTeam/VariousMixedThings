@@ -1,6 +1,11 @@
 InfluxMerge {
-	var <inValDict, <outValDict, <>mergeFunc;
-	var <srcWeights;
+	var <inValDict, <outValDict, <>mergeFunc, <>damping = 0.5;
+	var <trusts;
+
+	*initClass {
+		Class.initClassTree(Halo);
+		this.addSpec(\damping, [0, 1]);
+	}
 
 	*new {
 		^super.new.init;
@@ -8,22 +13,20 @@ InfluxMerge {
 	init {
 		inValDict = ();
 		outValDict = ();
-		srcWeights = ();
+		trusts = ();
 
-		// // default: sort of equal power pan
-		// var outval = values.mean * weight / values.size.sqrt;
-		// var outval = values.sum * weight; // alt - linear sum
-		// var outval = values.mean * weight; // alt - mean value
+		// damping 0 is linear sum of contribs,
+		// damping 0.5 is scaled by sqrt of contribs (equal power sum?)
+		// damping 1 is linear average
 
-		mergeFunc = { |in, out, srcWeights|
+		mergeFunc = { |in, out, trusts, damping = 0.5|
 			in.keysValuesDo { |key, values|
 				var outval = 0;
 				values.keysValuesDo { |srcName, val|
-					var contrib = val * (srcWeights[srcName]);
+					var contrib = val * (trusts[srcName]);
 					outval = outval + contrib;
-					// [srcName, srcWeights[srcName], contrib].postln;
 				};
-				outval = outval / values.size.sqrt;
+				outval = outval / (values.size ** damping);
 				out.put(key, outval);
 			}
 		}
@@ -35,15 +38,15 @@ InfluxMerge {
 			inValDict[param].put(who, val);
 		};
 		this.checkWeights(who);
-		mergeFunc.value(inValDict, outValDict, srcWeights);
+		mergeFunc.value(inValDict, outValDict, trusts);
 	}
 
 	checkWeights { |who|
-		if (srcWeights[who].isNil) { srcWeights[who] = 1 };
+		if (trusts[who].isNil) { trusts[who] = 1 };
 	}
 
-	putSrcWeight { |srcName, val|
-		srcWeights.put(srcName, val);
-		mergeFunc.value(inValDict, outValDict, srcWeights);
+	trust { |srcName, val|
+		trusts.put(srcName, val);
+		mergeFunc.value(inValDict, outValDict, trusts, damping);
 	}
 }

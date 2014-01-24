@@ -29,8 +29,8 @@ a.influence(\srcB, \x, nil, \y, nil).outValDict;
 a.mergeFunc.postcs;
 
 // each source has a weight which scales its influence
-a.srcWeights; // 1 by default for every source
-a.putSrcWeight(\srcA, 0.5);
+a.trusts; // 1 by default for every source
+a.trust(\srcA, 0.5);
 
 // now srcA has less influence:
 a.influence(\srcA, \x, -0.5, \y, 0.1).outValDict.collect(_.round(0.001));
@@ -40,7 +40,7 @@ a.influence(\srcB, \x, -0.3, \y, -0.2).outValDict.collect(_.round(0.001));
 a.influence(\srcC, \z, 0.3, \ccc, -0.2).outValDict.collect(_.round(0.001));
 a.inValDict;
 a.outValDict;
-a.srcWeights;
+a.trusts;
 
 // interactive example:
 // small xy sliders influence the big XY,
@@ -59,7 +59,7 @@ b = [\srcA, \srcB, \srcC].collect { |srcName|
 		c.setXY(a.outValDict[\x] + 1 * 0.5, a.outValDict[\y] + 1 * 0.5);
 	}).setXY(0.5, 0.5);
 	var slInf = EZSlider(w, 40@130, srcName, [0, 4, \amp].asSpec, { |sl|
-		a.srcWeights.put(srcName, sl.value.postln); }, 1, layout: \vert);
+		a.trusts.put(srcName, sl.value.postln); }, 1, layout: \vert);
 	w.view.decorator.shift(20, 0);
 
 	// sl.mouseDownAction = { ktl.startRec };
@@ -91,10 +91,10 @@ the dictionary of incoming influence values
 METHOD:: outValDict
 the dictionary of output influence values
 
-METHOD:: srcWeights
+METHOD:: trusts
 the dictionary of weights for each named source.
 
-METHOD:: putSrcWeight
+METHOD:: trust
 add or set a weight for a named source.
 
 METHOD:: checkWeights

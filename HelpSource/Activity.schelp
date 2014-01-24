@@ -20,7 +20,7 @@ a.action = nil; // stop posting
 
 (
 SynthDef(\ting, { |freq, amp|
-	Out.ar(0, (SinOsc.ar(freq, 5) * Line.kr(amp, amp * 0.001, 0.2, 5, doneAction: 2)).tanh);
+	Out.ar(0, (SinOsc.ar(freq) * Line.kr(amp, amp * 0.001, 0.2, 5, doneAction: 2)).tanh ! 2);
 }).add;
 
 	// more activity creates wider melody jumps,
@@ -40,17 +40,22 @@ Tdef(\ting, {
 a.add(1);
 a.add(3);
 
+// set decaytime of model
+a.decaytime = 2;
+
+(
+var w, mp;
 w = Window.new.front;
 StaticText(w, w.bounds.moveTo(0,0)).align_(\center)
 .string_("click and drag to charge activity level.");
 w.view.mouseMoveAction = { |view, x, y|
 	var mousepos = (x@y);
-	var diff = mousepos - (b ? mousepos);
+	var diff = mousepos - (mp ? mousepos);
 	a.add(diff.rho * 0.05);
-	b = mousepos;
+	mp = mousepos;
 	a.level.postln;
 };
-
+)
 ::
 
 
