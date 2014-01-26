@@ -1,46 +1,14 @@
-InfluxSpread {
+InfluxSpread : InfluxBase {
 
-	classvar <>sendFunc;
+	classvar <>sendFuncSet;
 
-	var <>names, <inValDict, <destsDict;
-	var <action;
+	var <destsDict;
 
 	*initClass {
-		sendFunc = { |destDict, infSpr|
-			// have names to send for each destination?
-			var sendVals = infSpr.inValDict;
-			var objSpecs = destDict[\specs];
-			var scaler = destDict[\scaler];
-			var offsets = destDict[\offsets];
-
-			if (scaler != 1) {
-				sendVals = sendVals.collect(_ * scaler);
-			};
-
-			if (offsets.notNil) {
-				// check if complete?
-				sendVals = sendVals.collect({|val, key| val + offsets[key] });
-			};
-
-			// if (objSpecs.notNil) {
-			// 	// check if complete?
-			// 	sendVals = sendVals.collect { |value, key|
-			// 		objSpecs[key].map(value.biuni);
-			// 	};
-			// };
+		sendFuncSet = { |destDict, influx|
+			var sendVals = influx.remapFor(destDict);
 			destDict[\object].set(*sendVals.asKeyValuePairs.postln);
 		};
-	}
-
-	*new { |names|
-		^super.newCopyArgs(names).init;
-	}
-
-	set { |... keyValPairs|
-		keyValPairs.pairsDo { |key, val|
-			inValDict.put(key, val);
-		};
-		action.value(this);
 	}
 
 	setScaler { |name, val|
@@ -54,24 +22,62 @@ InfluxSpread {
 	}
 
 	init {
-		names = names ?? { List[] };
-		inValDict = ();
+		super.init;
 		destsDict = ();
-		action = FuncChain();
 	}
 
-	add { |name, object, specs, func, offsets, scaler|
+	remapFor { |destDict|
+		// have names to send for each destination?
+		var newDict;
+		var sendVals = inValDict;
+		var object = destDict[\object];
+		var paramMap = destDict[\paramMap];
+		var objSpecs = destDict[\specs];
+		var scaler = destDict[\scaler];
+		var offsets = destDict[\offsets];
+
+		if (paramMap.notNil) {
+			newDict = ();
+			sendVals.keysValuesDo { |key, val|
+				//	[key, paramMap[key], val].postcs;
+				if (paramMap[key].notNil) {
+					newDict.put (paramMap[key], val);
+				};
+			};
+			sendVals = newDict;
+		};
+
+		if (scaler != 1) {
+			sendVals = sendVals.collect(_ * scaler);
+		};
+
+		if (offsets.notNil) {
+			// check if complete?
+			sendVals = sendVals.collect({|val, key| val + (offsets[key] ? 0) });
+		};
+		if (objSpecs.notNil) {
+			// check if complete?
+			sendVals = sendVals.collect { |value, key|
+				objSpecs[key].map(value.biuni);
+			};
+		};
+
+		^sendVals;
+	}
+
+	addDest { |name, object, specs, paramMap, sendFunc, offsets, scaler|
 		var destDict = destsDict[name];
 		destDict ?? { destsDict[name] = destDict = () };
 
 		destDict.put(\name, name);
 		destDict.put(\object, object);
-		destDict.put(\specs, specs);
+		destDict.put(\specs, specs ?? { object.getSpec });
+		destDict.put(\paramMap, paramMap);
 		destDict.put(\scaler, scaler ? 1);
 
-		action.add(name, func ? { |infspr| sendFunc.value(destDict, infspr) });
-	}
+		sendFunc = sendFunc ? sendFuncSet;
 
-	send { action.value(this) }
+		action.add(name, { |infspr| sendFunc.value(destDict, infspr) });
+	}
 
 }

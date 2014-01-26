@@ -4,21 +4,21 @@ categories:: Influx
 related:: Classes/Influx, Reference/MetaControl
 
 DESCRIPTION::
-* InfluxBase is the base class for the Influx family.
+InfluxBase is the base class for the Influx family.
   It passes on incoming values under the same name
   and spreads them as they are to multiple destinations
   by means named actions.
 
-* InfluxMix can accept influences from multiple sources
+InfluxMix can accept influences from multiple sources
   and decides on param values based on the influences.
   Different sources can have different trust values,
   which will determine the strength of their influence.
 
-* InfluxSpread can distribute incoming values to
+InfluxSpread can distribute incoming values to
   multiple destinations, with optional rescaling,
   and optional mapping to other parameter names.
 
-* Influx can entangle or disentangle inValues to outValues
+Influx can entangle or disentangle inValues to outValues
   by means of a matrix of weights  which determine how strongly
   a given input param will affect a given output param.
 

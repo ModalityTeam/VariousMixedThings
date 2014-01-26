@@ -1,0 +1,151 @@
+TITLE:: InfluxSpread
+summary:: Influx variant that can spread influences to multiple destinations.
+categories:: Influx
+related:: Classes/InfluxBase, Classes/Influx, Classes/InfluxMix, Classes/KtlLoop
+
+DESCRIPTION::
+
+InfluxSpread can distribute incoming values to
+  multiple destinations, with optional rescaling,
+  and optional mapping to other parameter names.
+
+
+First example:
+
+code::
+	// make one
+z = InfluxSpread();
+
+	// make a destination
+Ndef(\four, { |a, b, c, d| SinOsc.ar( 440 * (2 ** [a, b, c, d].lag(0.1))).sum * 0.1 }).play;
+Ndef(\four).gui;
+
+	// add the destination
+z.add(\four, Ndef(\four)); z.destsDict;
+
+	// set values thru z
+z.set(\a, 0.5);
+z.destsDict[\four];
+z.inValDict;
+z.set(\a, 0.5, \b, 0.2, \c, 0.1);
+z.set(\a, 0.5.rand2, \b, 0.2.rand2, \c, 0.1.rand2);
+
+z.set(\a, 0.5, \b, 0.2, \c, 0.1);
+
+	// set a scaler value - range doubles
+z.setScaler(\four, 2);
+z.setScaler(\four, 1);
+
+	
+	// set offsets
+z.setOffsets(\four, (a: -0.42, b: 0, c: 0.333, d: 0.58));
+
+	// when setting to center,  the offsets form a slightly off major chord
+z.set(\a, 0, \b, 0, \c, 0, \d, 0);
+
+	// declare specs for Ndef four 
+(
+var myspec = [-2, 2].asSpec;
+z.destsDict[\four].specs = (a: myspec, b: myspec, c: myspec, d: myspec);
+)
+	// now the range is +-2 octaves again
+z.action.value(z); // now 4 octaves
+z.set(\a, 0.0);
+z.set(\a, -1.0);
+z.set(\a, 1.0);
+z.set(\a, 1.0);
+::
+
+CLASSMETHODS::
+
+METHOD:: sendFuncSet
+the default function to use to send to each destination. 
+
+private:: initClass
+
+INSTANCEMETHODS::
+
+private:: init
+
+METHOD:: destsDict
+the dictionary of destination data
+
+METHOD:: addDest
+add a destination and its data with name, object (anything that responds to .set)
+
+ARGUMENT:: name
+the name for the destination
+
+ARGUMENT:: object
+the object that gets the information, often a proxy
+
+ARGUMENT:: specs
+the specs for the object's parameters
+
+ARGUMENT:: sendFunc
+the function to evaluate when sending. if nil, defaultSendFunc is used. 
+example for a special sendFunc setting influence on an InfluxMix:
+code::
+{ |destDict, influx| 
+	influx.remapFor(
+	destDict[\object].influence(
+		destDict[\object].key,
+		*influxSpread.inValDict.asKeyValuePairs
+	);
+};
+::
+ARGUMENT:: offsets
+event with key value pairs for parameter offsets to use.
+
+ARGUMENT:: scaler
+a scaler to use for influences 
+
+METHOD:: setScaler
+set a range scaler for a destination by name and val
+
+METHOD:: setOffsets
+set the offsets to use for a destination, as an event with key and value for every parameter.
+
+EXAMPLES::
+
+code::
+
+	// test - remap to different param names, 
+	// no specs, so use values as they are
+Ndef(\tre, { |f1, f2, f3| SinOsc.ar( 440 * (2 ** [f1, f2, f3].lag(0.1))).sum * 0.1 }).play;
+Ndef(\tre).gui;
+z = InfluxSpread([\a, \b, \c]);
+z.addDest(\tre, Ndef(\tre), nil, (a: \f1, b: \f2, c: \f3));
+z.destsDict[\tre][\paramMap][\a];
+z.set(\a, 0, \b, 0, \c, 0);
+z.inValDict;
+z.set(\a, 0.5, \b, 0.3, \c, 0.1);
+z.inValDict;
+
+
+// test - object has specs, 
+// remap names, try out setOffsets, setScaler
+Ndef(\tre, { |f1, f2, f3| SinOsc.ar( 440 * (2 ** [f1, f2, f3].lag(0.1))).sum * 0.1 }).play;
+Ndef(\tre).addSpec(\f1, [-2, 2]);
+Ndef(\tre).addSpec(\f2, [-2, 2]);
+Ndef(\tre).addSpec(\f3, [-2, 2]);
+Ndef(\tre).gui;
+
+z = InfluxSpread([\a, \b, \c]);
+z.addDest(\tre, Ndef(\tre), paramMap: (a: \f1, b: \f2, c: \f3));
+z.set(\a, 0, \b, 0, \c, 0);
+z.inValDict;
+z.set(\a, 0.5, \b, 0.3, \c, 0.1);
+z.inValDict;
+
+z.setOffsets(\tre, (f1: 0.2, f2: 0, f3: -0.3));
+z.set(\a, 0, \b, 0, \c, 0);
+z.inValDict;
+z.set(\a, 0.5, \b, 0.3, \c, 0.1);
+z.inValDict;
+
+z.setScaler(\tre, 1.1);
+z.set(\a, 0, \b, 0, \c, 0);
+z.set(\a, 0.5, \b, 0.3, \c, 0.1);
+::
+
