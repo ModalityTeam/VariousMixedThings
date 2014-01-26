@@ -96,8 +96,8 @@ See examples.
 
 subsection:: Instance Methods
 
-METHOD:: posti, postv, postw, postp
-pretty-post input values, output values, weights, and weights presets
+METHOD:: postv, postw, postp
+pretty-post input and output values, weights, and weights presets
  
 private:: init, printOn, storeArgs
 
