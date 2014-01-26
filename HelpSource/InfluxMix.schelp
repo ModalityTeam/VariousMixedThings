@@ -1,16 +1,14 @@
-TITLE:: InfluxMerge
+TITLE:: InfluxMix
 summary:: merge influences from several sources into one set of control values.
 categories:: MetaKontrol
 related:: Classes/Influx, Classes/KtlLoop
 
 DESCRIPTION::
 
-InfluxMerge receives influence values for named control parameters from an unlimited number of named sources, and merges them into one set of output param values. Within an InfluxMerge each named source can have its own weight (or trust) factor.
-This can be used to have multiple control sources (e.g. human interfaces) influence the same process simultaneously.
-
+InfluxMerge receives influence values for named control parameters from an unlimited number of named sources, and merges them into one set of output param values. Within an InfluxMerge each named source has its own trust factor. This can be used to have multiple control sources (e.g. human interfaces) influence the same process simultaneously.
 
 code::
-a = InfluxMerge();
+a = InfluxMix();
 
 a.influence(\srcA, \x, 0.5, \y, 0.1).outValDict;
 a.influence(\srcB, \x, -0.3, \y, 0.2).outValDict;
@@ -24,7 +22,7 @@ a.inValDict; // posts:
 // remove influence of srcB
 a.influence(\srcB, \x, nil, \y, nil).outValDict;
 
-// It merges them by applying a mergeFunc to all the influences on one param.
+// It mixes them by applying a mergeFunc to all the influences on one param.
 
 a.mergeFunc.postcs;
 
@@ -46,7 +44,7 @@ a.trusts;
 // small xy sliders influence the big XY,
 // vertical ezsliders set influence of each XY.
 (
-w = Window("InfluxMerge - 3 top xy sliders influence big XY", Rect(10, 10, 550, 400)).front;
+w = Window("InfluxMix - 3 top xy sliders influence big XY", Rect(10, 10, 550, 400)).front;
 w.addFlowLayout;
 // EnvirGui(a.inValDict, 4, w);
 
@@ -73,17 +71,11 @@ c = Slider2D(w, 250@250).setXY(0.5, 0.5);
 CLASSMETHODS::
 
 METHOD:: new
-make a new InfluxMerge.
-
-
+make a new InfluxMix, optionally giving it parameter names.
 
 INSTANCEMETHODS::
 
-private:: init, checkWeights
-
-
-METHOD:: mergeFunc
-get and set the function by which values are merged. By default, a kind of equal power panning is used.
+private:: init, initClass, checkWeights
 
 METHOD:: inValDict
 the dictionary of incoming influence values
@@ -94,18 +86,24 @@ the dictionary of output influence values
 METHOD:: trusts
 the dictionary of weights for each named source.
 
-METHOD:: trust
-add or set a weight for a named source.
-
-METHOD:: checkWeights
-check whether a named source already has a weight.
-
 METHOD:: influence
-exert an influence on a named param of the InfluMerge.
+exert an influence on a named param of the InfluxMix.
 
 ARGUMENT:: who
 name of the source exerting the influence
 
 ARGUMENT::  ... keyValPairs
 pairs of key, val, key, val
+
+METHOD:: trust
+add or set a trust value for a named source.
+
+METHOD:: mergeFunc
+get and set the function by which values are merged. By default, a kind of equal power panning is used.
+
+METHOD:: damping
+get and set the a damping factor for mergeFunc. the default mergeFunc uses this as an exponent for scaling by numOfValues ** damping. Here, damping 0 is full linear sum, damping 0.5 means scale sum by numOfValues.sqrt, and damping 1 is linear average.
+
+private:: checkTrusts
+
 

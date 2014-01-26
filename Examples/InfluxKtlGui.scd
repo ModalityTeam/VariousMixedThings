@@ -3,6 +3,8 @@ ToDo:
 - Influx - named versions?
 Idef, IMdef
 
+Idef(\x)
+
 // InfluxKtlGui sketch tests
 
 a = Influx([\x, \y, \z], [\a, \b, \c, \d]);

@@ -1,22 +1,27 @@
-InfluxMerge {
-	var <inValDict, <outValDict, <>mergeFunc, <>damping = 0.5;
-	var <trusts;
+InfluxMix {
+
+	var <>names, <inValDict, <outValDict, <trusts;
+	var <>mergeFunc, <>damping = 0.5;
+	var <action;
 
 	*initClass {
 		Class.initClassTree(Halo);
+		Class.initClassTree(Spec);
 		this.addSpec(\damping, [0, 1]);
 	}
 
-	*new {
-		^super.new.init;
+	*new { |names|
+		^super.newCopyArgs(names).init;
 	}
 	init {
+		names = names ?? { List[] };
 		inValDict = ();
 		outValDict = ();
 		trusts = ();
+		action = FuncChain();
 
 		// damping 0 is linear sum of contribs,
-		// damping 0.5 is scaled by sqrt of contribs (equal power sum?)
+		// damping 0.5 is scaled by sqrt of contribs (equal power sum)
 		// damping 1 is linear average
 
 		mergeFunc = { |in, out, trusts, damping = 0.5|
@@ -37,16 +42,19 @@ InfluxMerge {
 			if (inValDict[param].isNil) { inValDict[param] = () };
 			inValDict[param].put(who, val);
 		};
-		this.checkWeights(who);
+		this.checkTrusts(who);
 		mergeFunc.value(inValDict, outValDict, trusts);
+		action.value(this);
 	}
 
-	checkWeights { |who|
+	checkTrusts { |who|
+		if (names.includes(who.not)) { names.add(who) };
 		if (trusts[who].isNil) { trusts[who] = 1 };
 	}
 
 	trust { |srcName, val|
 		trusts.put(srcName, val);
 		mergeFunc.value(inValDict, outValDict, trusts, damping);
+		action.value(this);
 	}
 }

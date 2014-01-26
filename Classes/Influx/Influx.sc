@@ -1,3 +1,118 @@
+/*
+  [move scaler and offsets to InfluxBase?]
+
+* InfluxBase is the base class for the Influx family.
+  It passes on incoming values under the same name
+  and spreads them as they are to multiple destinations
+  by means named actions.
+
+* InfluxMix can accept influences from multiple sources
+  and decides on param values based on the influences.
+  Different sources can have different trust values,
+  which will determine the strength of their influence.
+
+* InfluxSpread can distribute incoming values to
+  multiple destinations, with optional rescaling,
+  and optional mapping to other parameter names.
+
+* Influx can entangle or disentangle inValues to outValues
+  by means of a matrix of weights  which determine how strongly
+  a given input param will affect a given output param.
+
+
+
+*/
+
+InfluxBase {
+	var <inNames, <outNames, <inValDict, <outValDict;
+	var <shape, <smallDim, <bigDim;
+	var <action;
+
+	*new { |inNames = 0, outNames, inValDict|
+		^super.newCopyArgs(inNames, outNames, inValDict).init;
+	}
+
+	storeArgs { ^[inNames, outNames] }
+	printOn { |receiver, stream|
+		^this.storeOn(receiver, stream);
+	}
+
+	init {
+		var newIns;
+
+		// replace with x, y, z, w, v, u ... and a, b, c, ...
+		if (inNames.isKindOf(SimpleNumber)) {
+			newIns = [120, 121, 122].keep(inNames);
+			if (inNames > 3) { newIns = newIns ++ (119 - (0 .. (inNames - 4))) };
+			inNames = newIns.collect { |num| num.asAscii.asSymbol; };
+		};
+
+		outNames = outNames ? inNames;
+
+		if (inValDict.isNil) {
+			inValDict = ();
+			inNames.do (inValDict.put(_, 0));
+		};
+
+		outValDict = ();
+		action = FuncChain.new;
+	}
+
+	doAction { action.value(this) }
+
+		// set input params
+	set { |...keyValPairs|
+		keyValPairs.pairsDo { |key, val|
+			inValDict.put(key, val);
+		};
+		this.calcOutVals;
+		this.doAction;
+	}
+
+	calcOutVals {
+		// modifications in subclasses
+		inValDict.keysValuesDo { |key, val|
+			outValDict.put(key, val);
+		};
+	}
+
+	// interface to FuncChain:
+	add { |name, func| action.add(name, func) }
+	remove { |name| action.removeAt(name) }
+	addFunc { |func| action.addFunc(func) }
+	removeFunc { |func| action.removeFunc(func) }
+
+	// attach proxies directly
+	attach { |object, funcName|
+		funcName = funcName ?? { object.key };
+		this.add(funcName, { object.set(*this.outValDict.asKeyValuePairs) });
+	}
+
+	detach { |name| this.remove(name); }
+
+
+		// convenience methods //
+	    // prettyprint values
+	postv { |round = 0.001|
+		var str = "";
+		[   ["inVals", inNames, inValDict],
+			["outVals", outNames, outValDict]
+		].do { |trip|
+			var valName, names, vals; #valName, names, vals = trip;
+			if (names.notNil) {
+				str = str ++ "\n// x.%: \n(\n".format(valName);
+				names.do { |name|
+					str = str ++
+					"\t%: %,\n".format(name, vals[name].round(round))
+				};
+				str = str ++ ");\n";
+			};
+		}
+		^str
+	}
+
+}
+
 /* todo:
 
 * method for making skewed diagonals
@@ -8,61 +123,61 @@
 *   e.g. locate them at (0.5@0.5), (-0.5 @ -0.5)
 * same for 3dim controls
 
-* make an official Influx interface?
-* InfluxKtlGui... add KtlLoop there already?
-
 * Examples with Tdef, Pdef
 
 * Example with multitouchpad:
 *  new finger gets next ndef/tdef, 3 params (vol, x, y)
 
-* a dense field of lots of presets, morph by distance
+* PresetZone - a dense field of lots of presets, morph by distance
+* PresetGrid - a grid with presets at each intersection
 
-InfluxIOWGui
 
 */
 
 
-Influx {
-	var <inNames, <outNames, <inValDict;
-	var <weights, <outValDict, <action;
-	var <shape, <smallDim, <bigDim, <presets;
-
+Influx :InfluxBase {
+	var <weights, <presets;
 	var <>outOffsets, <>inScaler = 1;
 
-	*new { |ins, outs, vals, weights|
+	*new { |ins = 2, outs = 8, vals, weights|
 		^super.newCopyArgs(ins, outs, vals, weights).init;
 	}
 
-	storeArgs { ^[inNames, outNames, inValDict, weights] }
-
-	printOn { |receiver, stream|
-		^this.storeOn(receiver, stream);
-	}
-
 	init {
-		if (inValDict.isNil) {
-			inValDict = ();
-			inNames.do (inValDict.put(_, 0));
+		// replace with x, y, z, w, v, u ... and a, b, c, ...
+		if (outNames.isKindOf(SimpleNumber)) {
+			outNames = (97 .. (97 + outNames - 1)).collect { |char| char.asAscii.asSymbol };
 		};
+
+		super.init;
 
 		outValDict = ();
 		outNames.do (outValDict.put(_, 0));
+
 		weights = weights ?? { { 0 ! inNames.size } ! outNames.size };
-		shape = weights.shape;
-		smallDim = shape.minItem;
-		bigDim = shape.maxItem;
 
 		outOffsets = 0 ! outNames.size;
 
 		this.makePresets;
 		this.rand;
 		this.calcOutVals;
+	}
 
-		action = FuncChain.new;
+	calcOutVals {
+		weights.do { |line, i|
+			var outVal = line.sum({ |weight, j|
+				weight * inValDict[inNames[j]] * inScaler;
+			}) + outOffsets[i];
+			outValDict.put(outNames[i], outVal);
+		};
 	}
 
 	makePresets {
+
+		shape = weights.shape;
+		smallDim = shape.minItem;
+		bigDim = shape.maxItem;
+
 		presets = ();
 		// diagonals
 		presets.put(\diagL, weights.collect { |inner, j|
@@ -99,23 +214,6 @@ Influx {
 		var str = "// x.weights:\n[\n";
 		weights.do { |line| str = str ++ Char.tab ++ line.round(round) ++ ",\n" };
 		str = str ++ "]";
-		^str
-	}
-
-	// prettyprint values
-	postv { |round = 0.001|
-		var str = "";
-		[   ["inVals", inNames, inValDict],
-			["outVals", outNames, outValDict]
-		].do { |trip|
-			var valName, names, vals; #valName, names, vals = trip;
-			str = str ++ "\n// x.%: \n(\n".format(valName);
-			names.do { |name|
-				str = str ++
-				"\t%: + %,\n".format(name, vals[name].round(round))
-			};
-			str = str ++ ");\n";
-		}
 		^str
 	}
 
@@ -165,24 +263,6 @@ Influx {
 		this.blend(pres, blend);
 	}
 
-	// set input params
-	set { |...keyValPairs|
-		keyValPairs.pairsDo { |key, val|
-			inValDict.put(key, val);
-		};
-		this.calcOutVals;
-		action.value(this);
-	}
-
-	calcOutVals {
-		weights.do { |line, i|
-			var outVal = line.sum({ |weight, j|
-				weight * inValDict[inNames[j]] * inScaler;
-			}) + outOffsets[i];
-			outValDict.put(outNames[i], outVal);
-		};
-	}
-
 	setw { | arrays |
 		if (arrays.shape == weights.shape) {
 			weights = arrays;
@@ -213,13 +293,6 @@ Influx {
 		^outOffsets = normVals.unibi;
 	}
 
-	attachDirect { |object, funcName|
-		funcName = funcName ?? { object.key };
-		action.addLast(funcName,
-			{ object.set(*this.outValDict.asKeyValuePairs) }
-		);
-	}
-
 	attachMapped { |object, funcName, paramNames, specs|
 		var mappedKeyValList;
 		specs = specs ?? { object.getSpec; };
@@ -239,5 +312,4 @@ Influx {
 		});
 	}
 
-	detach { |name| action.removeAt(name); }
 }
