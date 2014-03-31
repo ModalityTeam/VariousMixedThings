@@ -18,6 +18,7 @@ strong::DIS/ENTANGLE::
 One can also use the same param names for input and output, starting with neutral weights like [0,0,1,0] where each param only influences its same-named output. Then one can introduce "entanglement" between params by adding small random deviations to the weights.
 
 strong::RELATIVE - playing around a known preset::
+
 One can use a known location in the param space (e.g. a stored good preset) as a starting point, and use Influx to play relative to the preset. Here, zooming allows very subtle explorations of shadings within a known good zone.
 
 First example:
@@ -160,15 +161,23 @@ code::
 // EXAMPLES
 // make an influx - fan-out 2 params to 8
 a = Influx([\x, \y], [\a, \b, \c,\d, \e, \f, \g, \h], (x: 0.5, y: 0.1));
+
 // make plot/edit views for weights:
-// plot style
-b = InfluxPlot(a).moveTo(300, 630);
 // or multislider style, which I find clearer:
 c = InfluxWGui(a); 
+// or weights and current IO values - recommended for debugging, 
+// maybe distracting for performance
+d = InfluxIOWGui(a); 
+// plot style - not recommended anymore:
+/// b = InfluxPlot(a).moveTo(300, 630);
+
+
 
 ///// interactive gui example
-// make a control window by hand
-// or use: InfluxKtlGui(a);
+// recommended for direct use: 
+InfluxKtlGui(a);
+
+// if you want to make a control window by hand, like this
 (
 w = Window("Influx control", Rect(0, 630, 300, 200)).front;
 w.layout = VLayout(
@@ -207,7 +216,7 @@ StaticText(v, 290@20).string_("Influx values:");
 }
 );
 
-//// more tests by code
+//// more tests by code - check that new values appear
 a.set(\x, 1.0, \y,0); 
 a.set(\x, 0, \y,0);    // go to center values
 a.set(\x, 1.0.rand2, \y, 1.0.rand2);
@@ -220,7 +229,7 @@ a.set(\x, 1.0.rand2, \y, 1.0.rand2);
 a.set(\x, 1.0.rand2, \y, 1.0.rand2);
 
 // remove again by name:
-a.action.remove(\test);
+a.action.removeAt(\test);
 
 
 // try playing a boring sound with too many parameters
@@ -252,34 +261,46 @@ Ndef(\a).gui.moveTo(0, 50);
 );
 Ndef(\a).play;
 
-// connect the influx action to the Ndef!
+// connect the influx action to the Ndef
+a.attachMapped(Ndef(\a));
 
-a.attachMapped(Ndef(\a), \setNdef, Ndef(\a).controlKeys);
-
-// to remove again: 
-// a.action.detach(\setNdef);
+// (this actually does:) 
+/// a.attachMapped(Ndef(\a), Ndef(\a).key, Ndef(\a).controlKeys);
 
 
-// strange whistler setting
+// now play with the influx gui for a while ... 
+
+// and remove it again when done: 
+// a.detach(\a);
+
+
+
+// EXPERIMENTS WITH SETTINGS:
+
+// set ndef to a special setting, here a strange whistler effect:
 Ndef('a').set('dens', 535.47, 'timescale', 0.331, 'loopnode', 6.23, 'curve', 4.75, 'freq', 12299.63, 'intv', -16.18, 'resfreq', 2581.33, 'ringtime', 0.238);
 
-// explore playing around this setting:
-a.offsetsFromProxy(Ndef(\a));
-a.set(\x, 0, \y, 0);
-a.inScaler = 1; // wide range, setting is at center?
-a.inScaler = 0.5; // smaller
+// and explore playing RELATIVE to this setting:
+
+// puts the current ndef setting in the center at 0@0:
+a.offsetsFromProxy(Ndef(\a));	
+// put the controller there
+a.set(\x, 0, \y, 0); 
+// rather wide range, setting is at center
+a.inScaler = 1; 
+a.inScaler = 0.5; // smaller range, zooming in
 a.inScaler = 0.25; // even smaller
 
 
 
-// PLAY RELATIVE TO PRESET
+// PLAY RELATIVE TO A PRESET
 
 // Next, try playing this with NdefPreset.
 // try finding interesting, contrasting settings,
 // storing them, morphing between them;
 // then try explore the areas around a preset by zooming in
 // and creating offsets...
-// also requires the JITLibExtensions Quark.
+// this requires the JITLibExtensions Quark.
 (
 n = NdefPreset(Ndef(\a));
 g = NdefPresetGui(NdefPreset(\a), 12);
@@ -293,7 +314,7 @@ n.addSet(\crackly);
 
 
 (
-// or add a few from earlier experiments
+// or add a few settings from my earlier experiments
 NdefPreset(\a).addSettings([
 ('noisy' -> [ [ 'freq', 9355.48 ], [ 'intv', -11.95 ], [ 'timescale', 0.285 ], [ 'curve', 3.938 ], [ 'loopnode', 3.052 ], [ 'dens', 534.251 ], [ 'resfreq', 859.160 ], [ 'ringtime', 0.0134 ] ]),
 ('crickety' -> [ [ 'freq', 32.366 ], [ 'intv', -5.187 ], [ 'timescale', 0.0954 ], [ 'curve', 0.2156 ], [ 'loopnode', 4.712 ], [ 'dens', 636.7 ], [ 'resfreq', 6358.147 ], [ 'ringtime', 0.964 ] ]),
@@ -305,7 +326,7 @@ NdefPreset(\a).addSettings([
 ]);
 )
 
-// set offsets from preset: now center values [0,0] will play the preset!
+// set the offsets from preset: now center values [0,0] will play the preset.
 a.offsetsFromPreset(n, \crickety);
 
 // set the scaler smaller to zoom in to a smaller neighborhood of the preset

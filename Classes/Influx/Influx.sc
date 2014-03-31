@@ -1,4 +1,5 @@
 /*
+
   [move scaler and offsets to InfluxBase?]
 
 * InfluxBase is the base class for the Influx family.
@@ -18,8 +19,6 @@
 * Influx can entangle or disentangle inValues to outValues
   by means of a matrix of weights  which determine how strongly
   a given input param will affect a given output param.
-
-
 
 */
 
@@ -296,7 +295,7 @@ Influx :InfluxBase {
 	attachMapped { |object, funcName, paramNames, specs|
 		var mappedKeyValList;
 		specs = specs ?? { object.getSpec; };
-		funcName = funcName ? object.key;
+		funcName = funcName ?? { object.key };
 		paramNames = paramNames
 		?? { object.getHalo(\orderedNames); }
 		?? { object.controlKeys; };
@@ -305,8 +304,11 @@ Influx :InfluxBase {
 			mappedKeyValList = paramNames.collect { |extParName, i|
 				var inflOutName = outNames[i];
 				var inflVal = outValDict[inflOutName];
-				var mappedVal = specs[extParName].map(inflVal + 1 * 0.5);
-				[extParName, mappedVal];
+				var mappedVal;
+				if (inflVal.notNil) {
+					mappedVal = specs[extParName].map(inflVal + 1 * 0.5);
+					[extParName, mappedVal];
+				} { [] }
 			};
 			object.set(*mappedKeyValList.flat);
 		});

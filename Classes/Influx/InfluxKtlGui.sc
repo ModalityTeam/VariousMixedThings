@@ -5,7 +5,8 @@ InfluxKtlGui : JITGui {
 	var <xyMapDict;
 
 	*new { |object, numItems = 5, parent, bounds, makeSkip = true, options = #[]|
-		^super.new(nil, numItems, parent, bounds, makeSkip, options);
+		^super.new(nil, numItems, parent, bounds, makeSkip, options)
+		.object_(object);
 	}
 
 	accepts { |obj| ^obj.isNil or: obj.isKindOf(Influx) }
@@ -16,6 +17,8 @@ InfluxKtlGui : JITGui {
 		if (options.includes(\loop)) { minHeight = minHeight + 200 };
 		minSize = 330 @ minHeight;
 	}
+
+	winName { ^"Influx" + (try { object.key } ? "") }
 
 	makeViews { |options|
 
@@ -155,7 +158,7 @@ InfluxKtlGui : JITGui {
 
 		if (newState[\object].notNil) {
 			if (newState[\object] != prevState[\object]) {
-
+				zone.enabled_(true);
 				this.name_(this.getName);
 				xyMapDict.put(\x, object.inNames[0]);
 				xyMapDict.put(\y, object.inNames[1]);
@@ -167,10 +170,12 @@ InfluxKtlGui : JITGui {
 			xpop.value_(object.inNames.indexOf(xyMapDict[\x]));
 			ypop.value_(object.inNames.indexOf(xyMapDict[\y]));
 
-			// xySlider.setXY(
-			// 	object.inValDict[xyMapDict[\x]].biuni,
-			// 	object.inValDict[xyMapDict[\y]].biuni
-			// );
+			xySlider.setXY(
+				object.inValDict[xyMapDict[\x]].biuni,
+				object.inValDict[xyMapDict[\y]].biuni
+			);
+		} {
+			zone.enabled_(false);
 		};
 
 		prevState = newState;
