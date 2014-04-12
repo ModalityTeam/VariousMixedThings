@@ -9,7 +9,6 @@ InfluxSpread can distribute incoming values to
   multiple destinations, with optional rescaling,
   and optional mapping to other parameter names.
 
-
 First example:
 
 code::
@@ -110,8 +109,8 @@ EXAMPLES::
 
 code::
 
-	// test - remap to different param names, 
-	// no specs, so use values as they are
+    // test - remap to different param names, 
+    // no specs, so use values as they are
 Ndef(\tre, { |f1, f2, f3| SinOsc.ar( 440 * (2 ** [f1, f2, f3].lag(0.1))).sum * 0.1 }).play;
 Ndef(\tre).gui;
 z = InfluxSpread([\a, \b, \c]);
@@ -121,6 +120,10 @@ z.set(\a, 0, \b, 0, \c, 0);
 z.inValDict;
 z.set(\a, 0.5, \b, 0.3, \c, 0.1);
 z.inValDict;
+
+Ndef(\tre).addSpec(\f1, [-3, 3]);
+Ndef(\tre).addSpec(\f2, [-3, 3]);
+Ndef(\tre).addSpec(\f3, [-3, 3]);
 
 
 // test - object has specs, 
@@ -147,5 +150,8 @@ z.inValDict;
 z.setScaler(\tre, 1.1);
 z.set(\a, 0, \b, 0, \c, 0);
 z.set(\a, 0.5, \b, 0.3, \c, 0.1);
+
+z.dump
+
 ::
 

@@ -45,7 +45,7 @@ InfluxMix : InfluxBase {
 			inValDict[param].put(who, val);
 		};
 		this.checkTrusts(who);
-		mergeFunc.value(inValDict, outValDict, trusts);
+		mergeFunc.value(inValDict, outValDict, trusts, damping);
 		action.value(this);
 	}
 
