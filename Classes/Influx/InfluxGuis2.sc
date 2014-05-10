@@ -123,9 +123,9 @@ InfluxWGui : JITGui {
 			multiSliders.do(_.drawRects_(true));
 		};
 	}
-	
-	setWeightsFor { |inIndex, inweights| 
-		inweights.do { |val, j| 
+
+	setWeightsFor { |inIndex, inweights|
+		inweights.do { |val, j|
 			object.weights[j].put(inIndex, val);
 		};
 	}
@@ -136,7 +136,7 @@ InfluxWGui : JITGui {
 	getState {
 		var newState = (object: object);
 		if (object.notNil) {
-			newState.put(\weights, object.weights)
+			newState.put(\weights, object.weights.deepCopy)
 			.put(\inNames, object.inNames)
 			.put(\outNames, object.outNames)
 		};
@@ -177,6 +177,7 @@ InfluxWGui : JITGui {
 				this.inNames_(newState[\inNames]); };
 			if (newState[\outNames] != prevState[\outNames]) {
 				this.outNames_(newState[\outNames]); };
+
 			if (newState[\weights] != prevState[\weights]) {
 				this.weights_(newState[\weights]); };
 		};
@@ -208,7 +209,7 @@ InfluxIOWGui : JITGui {
 				// display only!
 				outValsGui.zone.enabled_(false);
 			};
-		}; 
+		};
 		inValsGui.checkUpdate;
 		wGui.checkUpdate;
 		outValsGui.checkUpdate;
@@ -246,7 +247,7 @@ InfluxIOWGui : JITGui {
 
 		wGui = InfluxWGui(nil, numItems, zone, 260 @ 200, makeSkip: false);
 		outValsGui = ParamGui(nil, numItems[1], zone,
-			bounds: 260 @ (numItems[1] + 1 * 20), 
+			bounds: 260 @ (numItems[1] + 1 * 20),
 			makeSkip: false,
 			options: [\name])
 			.name_(\outVals);

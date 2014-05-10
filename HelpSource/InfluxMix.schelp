@@ -40,6 +40,8 @@ a.inValDict;
 a.outValDict;
 a.trusts;
 
+a.trust(\srcA, 1);
+
 // interactive example:
 // small xy sliders influence the big XY,
 // vertical ezsliders set influence of each XY.
@@ -70,9 +72,9 @@ c = Slider2D(w, 250@250).setXY(0.5, 0.5);
 
 CLASSMETHODS::
 
-METHOD:: defaultMergeFunc 
+METHOD:: defaultMergeFunc
 the default for the function by which the influences in an InfluxMix get merged.
-this creates a linear sum which is then scaled by  numOfValues ** damping. 
+this creates a linear sum which is then scaled by  numOfValues ** damping.
 This means that a damping value of 0 is the full linear sum, damping 0.5 means the sum is scaled by numOfValues.sqrt, and damping 1 is linear average.
 
 METHOD:: new

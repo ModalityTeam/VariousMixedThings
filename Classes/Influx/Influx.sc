@@ -1,11 +1,14 @@
 /*
 
+Questions -
+
   [move scaler and offsets to InfluxBase?]
 
 * InfluxBase is the base class for the Influx family.
-  It passes on incoming values under the same name
+  It passes on incoming values under the same name,
+  (puts them into outValDict - maybe remove this step?),
   and spreads them as they are to multiple destinations
-  by means named actions.
+  by means of the named actions in its action, a FuncChain2.
 
 * InfluxMix can accept influences from multiple sources
   and decides on param values based on the influences.
@@ -23,34 +26,65 @@
 */
 
 InfluxBase {
-	var <inNames, <outNames, <inValDict, <outValDict;
-	var <shape, <smallDim, <bigDim;
+	classvar <outNameOrder;
+
+	var <inNames, <inValDict, <outValDict;
 	var <action;
 
-	*new { |inNames = 0, outNames, inValDict|
-		^super.newCopyArgs(inNames, outNames, inValDict).init;
+	var <shape, <smallDim, <bigDim;
+
+	*initClass {
+		outNameOrder = [23, 24, 25] ++ (22, 21 .. 0);
 	}
 
-	storeArgs { ^[inNames, outNames] }
+	*outNameFor { |index|
+		// infinite default inNames
+		// a b c ... x y z A B C ... X Y Z aa bb cc ... xx yy zz AA BB CC ...
+		var charIndex = index % 26;
+		var num = index div: 52 + 1;
+		var charCase = index div: 26 % 2;
+
+		var char = (charIndex + [97, 65][charCase]).asAscii;
+		// [\charIndex, charIndex, \num, num, \charCase, charCase].postln;
+		// char.postcs;
+		^String.fill(num, char).asSymbol;
+	}
+
+	*inNameFor { |index|
+		// inNames reordered :
+		// x y z w ... b a X Y Z W ... B A xx yy zz ... BB AA XX YY ZZ
+		var charIndex = index % 26;
+		index = index - charIndex + outNameOrder[charIndex];
+		^this.outNameFor(index);
+	}
+
 	printOn { |receiver, stream|
 		^this.storeOn(receiver, stream);
 	}
+	// needed for influence method -
+	// x.putHalo(\key, <myName>);
+
+	key { ^this.getHalo(\key) ? 'anonIB' }
+
+	*new { |inNames, inValDict|
+		^super.newCopyArgs(inNames, inValDict).init;
+	}
 
 	init {
-		var newIns;
+		inNames = inNames ? 2;
 
 		// replace with x, y, z, w, v, u ... and a, b, c, ...
 		if (inNames.isKindOf(SimpleNumber)) {
-			newIns = [120, 121, 122].keep(inNames);
-			if (inNames > 3) { newIns = newIns ++ (119 - (0 .. (inNames - 4))) };
-			inNames = newIns.collect { |num| num.asAscii.asSymbol; };
+			inNames = inNames.collect(this.class.inNameFor(_));
 		};
-
-		outNames = outNames ? inNames;
 
 		if (inValDict.isNil) {
 			inValDict = ();
-			inNames.do (inValDict.put(_, 0));
+			inNames.do { |name|
+				if (inValDict[name].isNil) {
+					inValDict[name] = 0;
+				}
+			};
 		};
 
 		outValDict = ();
@@ -59,16 +93,23 @@ InfluxBase {
 
 	doAction { action.value(this) }
 
-		// set input params
+		// set input params - ignore unknowns.
 	set { |...keyValPairs|
+		var doIt = false;
 		keyValPairs.pairsDo { |key, val|
-			inValDict.put(key, val);
+			if (inNames.includes(key)) {
+				inValDict.put(key, val);
+				doIt = true;
+			};
 		};
-		this.calcOutVals;
-		this.doAction;
+		if (doIt) {
+			this.calcOutVals;
+			this.doAction;
+		};
 	}
 
 	calcOutVals {
+		// just copy them over here;
 		// modifications in subclasses
 		inValDict.keysValuesDo { |key, val|
 			outValDict.put(key, val);
@@ -76,15 +117,33 @@ InfluxBase {
 	}
 
 	// interface to FuncChain:
+	// for more complex ordering, use i.action.addAfter etc.
 	add { |name, func| action.add(name, func) }
 	remove { |name| action.removeAt(name) }
 	addFunc { |func| action.addFunc(func) }
 	removeFunc { |func| action.removeFunc(func) }
 
-	// attach proxies directly
-	attach { |object, funcName|
-		funcName = funcName ?? { object.key };
+	funcName { |str, obj|
+		var objname = if (obj.respondsTo(\key)) { obj.key } { action.array.size };
+		^(str ++ "_" ++ objname).asSymbol;
+	}
+
+	attachSet { |object, funcName|
+		funcName = funcName ?? { this.funcName("set", object) };
 		this.add(funcName, { object.set(*this.outValDict.asKeyValuePairs) });
+	}
+
+		// attach objects directly
+	attachPut { |object, funcName|
+		funcName = funcName ?? { this.funcName("put", object) };
+		this.add(funcName, { object.putAll(outValDict); });
+	}
+
+	attachInfl { |object, funcName|
+		funcName = funcName ?? { this.funcName("infl", object) };
+		this.add(funcName, {
+			object.influence(this.key, *this.outValDict.asKeyValuePairs);
+		});
 	}
 
 	detach { |name| this.remove(name); }
@@ -93,16 +152,21 @@ InfluxBase {
 		// convenience methods //
 	    // prettyprint values
 	postv { |round = 0.001|
-		var str = "";
+		var str = "\n// " + this + "\n";
 		[   ["inVals", inNames, inValDict],
-			["outVals", outNames, outValDict]
+			["outVals", inNames, outValDict]
 		].do { |trip|
-			var valName, names, vals; #valName, names, vals = trip;
-			if (names.notNil) {
+			var valName, names, vals;
+			#valName, names, vals = trip;
+			if (names.notNil and: { vals.size > 0}) {
 				str = str ++ "\n// x.%: \n(\n".format(valName);
 				names.do { |name|
-					str = str ++
-					"\t%: %,\n".format(name, vals[name].round(round))
+					var val = vals[name];
+					if (val.isNumber) { val = val.round(round) };
+					if (val.notNil) {
+						str = str ++
+						"\t%: %,\n".format(name, val)
+					};
 				};
 				str = str ++ ");\n";
 			};
@@ -114,7 +178,13 @@ InfluxBase {
 
 /* todo:
 
-* method for making skewed diagonals
+* weight presets:
+  * make the named ones once when called, then lookup
+  * distinguish between known and added new ones;
+  * on demand save new ones to disk.
+
+* write method for making skewed diagonals
+
 * crossfade background task:
 *  xfade to new set of weights,
 *  xfade to new offsets
@@ -130,25 +200,26 @@ InfluxBase {
 * PresetZone - a dense field of lots of presets, morph by distance
 * PresetGrid - a grid with presets at each intersection
 
-
 */
 
 
 Influx :InfluxBase {
 	var <weights, <presets;
+	var <outNames;
 	var <>outOffsets, <>inScaler = 1;
 
 	*new { |ins = 2, outs = 8, vals, weights|
-		^super.newCopyArgs(ins, outs, vals, weights).init;
+		^super.newCopyArgs(ins, vals, weights).init(outs);
 	}
 
-	init {
-		// replace with x, y, z, w, v, u ... and a, b, c, ...
-		if (outNames.isKindOf(SimpleNumber)) {
-			outNames = (97 .. (97 + outNames - 1)).collect { |char| char.asAscii.asSymbol };
-		};
+	init { |outs|
 
 		super.init;
+
+		// replace with x, y, z, w, v, u ... and a, b, c, ...
+		if (outs.isKindOf(SimpleNumber)) {
+			outNames = (97 .. (97 + outs - 1)).collect { |char| char.asAscii.asSymbol };
+		};
 
 		outValDict = ();
 		outNames.do (outValDict.put(_, 0));
@@ -165,7 +236,7 @@ Influx :InfluxBase {
 	calcOutVals {
 		weights.do { |line, i|
 			var outVal = line.sum({ |weight, j|
-				weight * inValDict[inNames[j]] * inScaler;
+				weight * (inValDict[inNames[j]] ? 0) * inScaler;
 			}) + outOffsets[i];
 			outValDict.put(outNames[i], outVal);
 		};

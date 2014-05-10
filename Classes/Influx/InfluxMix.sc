@@ -14,14 +14,17 @@ InfluxMix : InfluxBase {
 		// damping 1 is linear average
 
 		defaultMergeFunc = { |in, out, trusts, damping = 0.5|
-			in.keysValuesDo { |key, values|
-				var outval = 0;
-				values.keysValuesDo { |srcName, val|
-					var contrib = val * (trusts[srcName]);
-					outval = outval + contrib;
-				};
-				outval = outval / (values.size ** damping);
-				out.put(key, outval);
+			var outval, contrib;
+			in.keysValuesDo { |paramKey, values|
+				if (values.size > 0) {
+					outval = 0;
+					values.keysValuesDo { |srcName, val|
+						contrib = val * (trusts[srcName]);
+						outval = outval + contrib;
+					};
+					outval = outval / (values.size ** damping);
+					out.put(paramKey, outval);
+				}
 			}
 		}
 	}
@@ -32,17 +35,21 @@ InfluxMix : InfluxBase {
 
 	init {
 		super.init;
-		inNames = inNames ?? { List[] };
+		inNames.do(inValDict.put(_, ()));
 		trusts = ();
 		mergeFunc = mergeFunc ? defaultMergeFunc
 	}
 
-	set { warn("you cannot set an InfluxMix, please use influence!"); }
+	set { warn("InfluxMix - cannot use set, please use influence!"); }
 
+	// only accept the paramKeys we expect
+	// later - remember time when last set command happened?
 	influence {|who ... keyValPairs|
-		keyValPairs.pairsDo { |param, val|
-			if (inValDict[param].isNil) { inValDict[param] = () };
-			inValDict[param].put(who, val);
+
+		keyValPairs.pairsDo { |paramKey, val|
+			if (inNames.includes(paramKey)) {
+				inValDict[paramKey].put(who, val);
+			};
 		};
 		this.checkTrusts(who);
 		mergeFunc.value(inValDict, outValDict, trusts, damping);

@@ -22,7 +22,7 @@ InfluxKtlGui : JITGui {
 
 	makeViews { |options|
 
-		if (hasWindow.not) { this.makeNameView; };
+		if (hasWindow.not) { this.makeNameView(400, 20); };
 		this.name_("Influx ...");
 
 		leftTopV = HLayoutView(zone, Rect(0, 0, zone.bounds.width, 240))
@@ -38,6 +38,11 @@ InfluxKtlGui : JITGui {
 			loopGui = KtlLoopGui(KtlLoop(\testXYZ), 0, parent: zone, bounds: 310 @ 180);
 			loopGui.taskGui.name_("KtlLoop for Influx");
 		};
+	}
+
+	makeNameView { |nameWid, height|
+		nameView = StaticText(zone, Rect(0,0, nameWid, height))
+			.font_(font).align_(0);
 	}
 
 	makeButtons { |options|
