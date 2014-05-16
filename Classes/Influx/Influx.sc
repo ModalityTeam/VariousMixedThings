@@ -29,7 +29,7 @@ InfluxBase {
 	classvar <outNameOrder;
 
 	var <inNames, <inValDict, <outValDict;
-	var <action;
+	var <>action;
 
 	var <shape, <smallDim, <bigDim;
 
@@ -88,7 +88,7 @@ InfluxBase {
 		};
 
 		outValDict = ();
-		action = FuncChain.new;
+		action = FuncChain2.new;
 	}
 
 	doAction { action.value(this) }
