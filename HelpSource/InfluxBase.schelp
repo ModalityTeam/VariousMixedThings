@@ -27,41 +27,47 @@ First example:
 code::
 // make an influx
 a = InfluxBase([\x, \y], inValDict: (x: 0.5, y: 0.1));
+a.postv;
 
+// generate names automatically
 a = InfluxBase(2);
 a = InfluxBase(4);
 a.inNames;
 a.outNames;
 
+// look uo values
 a.inValDict;
 a.postv;
 
 a.calcOutVals;
 a.postv;
 
+// setting updates values
 a.set(\x, 0.5).postv;
 a.set(\y, -0.5).postv;
+
+// wrong names are ignored
+a.set(\z, 0.5).postv;
+
 
 Tdef(\a, { |envir|
 	loop { 1.wait; envir.postln };
 }).play;
 
+// add a named function to act on changing inVals
 a.add(\test, { |influx| Tdef(\a).set(*influx.outValDict.asKeyValuePairs); });
 a.set(\y, -0.54321).postv;
 
+// and remove it
 a.remove(\test);
 
-a.set(\z, 0.5).postv;
+//
+a.attachSet(Tdef(\a));
+a.set(\x, 0.12).postv;
 
-a.attach(Tdef(\a));
-a.detach(\a);
+a.detach(\set_a);
+a.set(\x, 0.34).postv;
 
-a.set(\z, 0.12).postv;
-
-a.attach(Tdef(\a));
-a.doAction;
-
-a.action;
 ::
 
 CLASSMETHODS::
@@ -106,9 +112,9 @@ pretty-post values
 
 METHOD:: set
 set input values of Influx
-ARGUMENT::  ... keyValPairs
+ARGUMENT::  ... keyValPairs
 key1, val1, ... keyN, valN
- 
+
 METHOD:: calcOutVals
 calculate new output values and do the action.
 
@@ -128,10 +134,10 @@ METHOD:: remove
 remove a function from action by name
 
 METHOD:: addFunc
-add an anonymous function to action 
+add an anonymous function to action
 
 METHOD:: removeFunc
-remove an anonymous function from action 
+remove an anonymous function from action
 
 METHOD:: attach
 attach an object - typically a JITLib proxy - and set its params from the Influx outputs.
@@ -140,13 +146,13 @@ ARGUMENT:: object
 the object
 
 ARGUMENT:: funcName
-a name to use in the FuncChain 
+a name to use in the FuncChain
 
 ARGUMENT:: paramNames
 paramNames to set - if none given, gets them from the object.
 
 ARGUMENT:: specs
-specs to use for mapping. If none given, those stored in the object's Halo are used. 
+specs to use for mapping. If none given, those stored in the object's Halo are used.
 
 METHOD:: detach
 remove an object from action by name

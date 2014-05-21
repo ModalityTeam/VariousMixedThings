@@ -29,6 +29,7 @@ InfluxBase {
 	classvar <outNameOrder;
 
 	var <inNames, <inValDict, <outValDict;
+	var <outNames;
 	var <>action;
 
 	var <shape, <smallDim, <bigDim;
@@ -51,33 +52,46 @@ InfluxBase {
 	}
 
 	*inNameFor { |index|
-		// inNames reordered :
+		// like outNames, but reordered :
 		// x y z w ... b a X Y Z W ... B A xx yy zz ... BB AA XX YY ZZ
 		var charIndex = index % 26;
 		index = index - charIndex + outNameOrder[charIndex];
 		^this.outNameFor(index);
 	}
 
-	printOn { |receiver, stream|
+	*makeInNames { |ins|
+		// make inNames from number
+		if (ins.isKindOf(SimpleNumber)) {
+			ins = ins.collect(this.inNameFor(_));
+		};
+		^ins
+	}
+
+	*makeOutNames { |outs|
+		// replace with x, y, z, w, v, u ... and a, b, c, ...
+		if (outs.isKindOf(SimpleNumber)) {
+			outs = outs.collect(this.outNameFor(_));
+		};
+		^outs
+	}
+
+	*new { |inNames = 2, inValDict|
+		inNames = this.makeInNames(inNames);
+		^super.newCopyArgs(inNames, inValDict)
+			.initBase
+			.initOuts(inNames)
+			.calcOutVals;
+	}
+
+		printOn { |receiver, stream|
 		^this.storeOn(receiver, stream);
 	}
+
 	// needed for influence method -
 	// x.putHalo(\key, <myName>);
-
 	key { ^this.getHalo(\key) ? 'anonIB' }
 
-	*new { |inNames, inValDict|
-		^super.newCopyArgs(inNames, inValDict).init;
-	}
-
-	init {
-		inNames = inNames ? 2;
-
-		// replace with x, y, z, w, v, u ... and a, b, c, ...
-		if (inNames.isKindOf(SimpleNumber)) {
-			inNames = inNames.collect(this.class.inNameFor(_));
-		};
-
+	prepInvals {
 		if (inValDict.isNil) {
 			inValDict = ();
 			inNames.do { |name|
@@ -86,9 +100,17 @@ InfluxBase {
 				}
 			};
 		};
+	}
 
-		outValDict = ();
+	initBase {
+		this.prepInvals;
 		action = FuncChain2.new;
+	}
+
+		// overwrite in subclasses
+	initOuts {
+		outNames = inNames;
+		outValDict = ();
 	}
 
 	doAction { action.value(this) }
@@ -154,7 +176,7 @@ InfluxBase {
 	postv { |round = 0.001|
 		var str = "\n// " + this + "\n";
 		[   ["inVals", inNames, inValDict],
-			["outVals", inNames, outValDict]
+			["outVals", outNames, outValDict]
 		].do { |trip|
 			var valName, names, vals;
 			#valName, names, vals = trip;
@@ -205,32 +227,43 @@ InfluxBase {
 
 Influx :InfluxBase {
 	var <weights, <presets;
-	var <outNames;
 	var <>outOffsets, <>inScaler = 1;
 
 	*new { |ins = 2, outs = 8, vals, weights|
-		^super.newCopyArgs(ins, vals, weights).init(outs);
+		ins = this.makeInNames(ins);
+		outs = this.makeOutNames(outs);
+
+		^super.newCopyArgs(ins, vals)
+			.initBase
+			.initOuts(outs)
+			.initWeights(weights)
+			.makePresets
+			.calcOutVals;
 	}
 
 	init { |outs|
+		this.prepInvals;
+		action = FuncChain2.new;
+		outNames = this.class.makeOutNames(outs);
+		this.calcOutVals;
+	}
 
-		super.init;
-
-		// replace with x, y, z, w, v, u ... and a, b, c, ...
-		if (outs.isKindOf(SimpleNumber)) {
-			outNames = (97 .. (97 + outs - 1)).collect { |char| char.asAscii.asSymbol };
-		};
-
+	initOuts { |outs|
+		outNames = outs;
 		outValDict = ();
 		outNames.do (outValDict.put(_, 0));
-
-		weights = weights ?? { { 0 ! inNames.size } ! outNames.size };
-
 		outOffsets = 0 ! outNames.size;
+	}
 
-		this.makePresets;
-		this.rand;
-		this.calcOutVals;
+	initWeights { |argWeights|
+		if (argWeights.isNil) {
+			weights = argWeights ?? { { 0 ! inNames.size } ! outNames.size };
+			this.rand;
+		} {
+			// add size check here
+		//	if (weights.shape == [inNames.size, outNames.size])
+				weights = argWeights
+		};
 	}
 
 	calcOutVals {
